@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity Web Player | MechBoardIdle</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=1440 height=2560 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-logo-title-footer"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">MechBoardIdle</div>
+      </div>
+    </div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/WebGL.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/WebGL.data.unityweb",
+        frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+        codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "MechBoardIdle",
+        productVersion: "1.0",
+        showBanner: unityShowBanner,
+        // errorHandler: function(err, url, line) {
+        //    alert("error " + err + " occurred at line " + line);
+        //    // Return 'true' if you handled this error and don't want Unity
+        //    // to process it further, 'false' otherwise.
+        //    return true;
+        // },
+      };
+
+      // By default, Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      // If you would like all file writes inside Unity Application.persistentDataPath
+      // directory to automatically persist so that the contents are remembered when
+      // the user revisits the site the next time, uncomment the following line:
+      // config.autoSyncPersistentDataPath = true;
+      // This autosyncing is currently not the default behavior to avoid regressing
+      // existing user projects that might rely on the earlier manual
+      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
+      // expected to change.
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        document.querySelector("#unity-container").className = "unity-mobile";
+        canvas.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+
+
+      } else {
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+        /* 캔버스 크기는 아래 레터박스가 정한다 */
+      }
+
+      (function () {
+          // ⚠️ **레터박스**(2026-09-15 사용자 확정 A안 · 육안 8차 ④).
+          //    내용은 언제나 9:16 이고, 창 비율이 다르면 남는 자리는 **검정**이다.
+          //    그래야 `UiLayout.Scale`(높이 기준)이 늘 같은 뜻을 갖고 버튼 크기가 안 변한다.
+          var W = 1440, H = 2560, lastW = -1, lastH = -1;
+          document.documentElement.style.overflow = 'hidden';
+          document.body.style.margin = '0';
+          document.body.style.overflow = 'hidden';
+          // 🗑️ **흰 타일은 폐기했다**(2026-09-16 사용자 판정) — 「없어 보인다」고 했다.
+          //    여백은 이제 **격납고 벽**이다(`letterbox_wall.png` 256×512 · 아트 09-16).
+          //    오른쪽 띠 = 원본 · 왼쪽 띠 = 미러 · 세로로만 반복 · 어둠 막은 없다
+          //    (그림이 이미 어둡다 · 휘도 p50 66.5). 바깥은 그림 바깥 열과 같은 #13111B 단색이다.
+          //
+          // ⚠️⚠️ **배경 한 장으로는 못 한다** — CSS 배경은 **거울로 못 뒤집는다.**
+          //    그래서 띠를 엘리먼트 둘로 두고 왼쪽에만 `scaleX(-1)` 을 건다.
+          //    띠는 캔버스 **밑에** 깔린다(z-index) — 캔버스가 가운데를 덮는다.
+          var box = document.querySelector('#unity-container');
+          var wallL = null, wallR = null;
+          if (box) {
+            box.className = '';
+            box.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;'
+              + 'display:flex;align-items:center;justify-content:center;transform:none';
+            box.style.background = '#13111B';
+            function band(mirror) {
+              var d = document.createElement('div');
+              // ⚠️ 그림은 **안쪽 변**에 붙인다. 오른쪽 띠는 왼쪽이 안쪽이고,
+              //    왼쪽 띠는 뒤집힌 좌표라 같은 'left' 가 바로 안쪽이 된다.
+              d.style.cssText = 'position:fixed;top:0;height:100%;z-index:0;pointer-events:none;'
+                + 'background-image:url(TemplateData/letterbox_wall.png);'
+                + 'background-repeat:repeat-y;background-position:left top;'
+                + (mirror ? 'left:0;transform:scaleX(-1);' : 'right:0;');
+              box.appendChild(d);
+              return d;
+            }
+            wallL = band(true);
+            wallR = band(false);
+          }
+          // ⚠️ 유니티 기본 템플릿은 좁은 화면에서 캔버스에 `unity-mobile` 을 붙이고
+          //    그 규칙이 `width:100%` 다 — 레터박스를 덮는다. 클래스를 떼고 !important 로 못 박는다.
+          canvas.className = '';
+          // ⚠️ 컨테이너를 fixed/flex 로 바꾸면 템플릿 푸터(유니티 로고·전체화면 단추)가
+          //    **캔버스 위로 올라와 버튼을 덮는다** — 레터박스를 넣다가 만든 회귀다.
+          //    포트폴리오 빌드에 그 줄은 필요 없다.
+          var foot = document.querySelector('#unity-footer');
+          if (foot) foot.style.display = 'none';
+          // ⚠️ 캔버스가 flex 흐름 밖에 있어서(템플릿이 자리를 따로 준다)
+          //    컨테이너의 가운데 정렬이 안 먹는다 — 캔버스에 직접 박는다.
+          canvas.style.setProperty('position', 'absolute', 'important');
+          canvas.style.setProperty('left', '50%', 'important');
+          canvas.style.setProperty('top', '50%', 'important');
+          canvas.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+          // 띠가 z-index 0 이라 캔버스를 그 위로 올린다 — 안 올리면 벽이 화면을 덮는다.
+          canvas.style.setProperty('z-index', '1', 'important');
+          function fit() {
+            var vw = window.innerWidth || document.documentElement.clientWidth;
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            if (!(vw > 0 && vh > 0)) return;
+            var k = Math.min(vw / W, vh / H);
+            var w = Math.round(W * k), h = Math.round(H * k);
+            if (w === lastW && h === lastH) return;
+            lastW = w; lastH = h;
+            canvas.style.setProperty('width', w + 'px', 'important');
+            canvas.style.setProperty('height', h + 'px', 'important');
+            // 띠 폭 = 캔버스 밖으로 남는 자리의 절반. 0 이면 띠가 없다(꽉 들어찬 창).
+            var side = Math.max(0, Math.round((vw - w) / 2));
+            // ⚠️ **그림을 게임과 같은 배율로 키운다** — 캔버스가 k 배로 서는데
+            //    벽만 날 픽셀로 두면 둘의 픽셀 크기가 어긋난다. 새 값을 안 지어냈다 — 같은 k 다.
+            var wallW = Math.max(1, Math.round(256 * k));
+            [wallL, wallR].forEach(function (d) {
+              if (!d) return;
+              d.style.width = side + 'px';
+              d.style.backgroundSize = wallW + 'px auto';
+            });
+          }
+          fit();
+          window.addEventListener('resize', fit);
+        })();
+
+      document.querySelector("#unity-loading-bar").style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+              }).then((unityInstance) => {
+                document.querySelector("#unity-loading-bar").style.display = "none";
+                document.querySelector("#unity-fullscreen-button").onclick = () => {
+                  unityInstance.SetFullscreen(1);
+                };
+
+              }).catch((message) => {
+                alert(message);
+              });
+            };
+
+      document.body.appendChild(script);
+
+    </script>
+  </body>
+</html>
